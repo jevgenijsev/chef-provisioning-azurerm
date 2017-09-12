@@ -1,4 +1,6 @@
 require 'chef/provisioning/azurerm/azure_provider'
+require 'azure'
+require "json"
 
 class Chef
   class Provider
@@ -99,6 +101,10 @@ class Chef
           end_provisioning_state_reached = end_provisioning_states.split(',').include?(deployment_provisioning_state)
         end
         action_handler.report_progress "Resource Template deployment reached end state of '#{deployment_provisioning_state}'."
+        deployment_outputs = deployment_output
+        if (new_resource.parse_output == 'True')
+          write_outputs(new_resource.queue_name, new_resource.storage_name, new_resource.storage_key, new_resource.common_info, deployment_outputs, deployment_provisioning_state)
+        end
       end
 
       def list_outstanding_deployment_operations
@@ -122,6 +128,39 @@ class Chef
         Chef::Log.debug("deployments result: #{deployments.inspect}")
         deployments.properties.provisioning_state
       end
+
+      def deployment_output
+        deployments = resource_management_client.deployments.get(new_resource.resource_group, new_resource.name)
+        deployment_outputs = deployments.properties.outputs
+        if (!deployment_outputs.nil?)
+          deployment_outputs
+        else
+          deployment_outputs = Hash.new
+          deployment_outputs = {"deployment_output"=>"Didn't get any output from the deployment"}
+        end
+      end
+
+      def write_outputs(queue_name, storage_name, storage_key, common_info, deployment_output, deployment_provisioning_state)
+        Azure.config.storage_account_name = storage_name
+        Azure.config.storage_access_key = storage_key
+        queue_name = queue_name
+
+        pp deployment_output
+        provisioning_state = deployment_provisioning_state
+        response_hash = Hash.new
+        response_hash = {"deployment_output" => {"public_ip_address"=> deployment_output['publicIPAddress']['value'], "storage_account_name" => deployment_output['storageAccountName']['value'], "storage_key" => deployment_output['storageKey']['value']}}
+
+        response_hash_result = common_info.merge(response_hash)
+        response_hash_result_json = JSON.pretty_generate(response_hash_result)
+
+        begin
+          azure_queue_service = Azure::Queue::QueueService.new
+          azure_queue_service.create_message(queue_name, response_hash_result_json)
+        rescue
+          puts $!
+        end
+      end
     end
   end
 end
+
