@@ -12,6 +12,11 @@ class Chef
       attribute :parameters, kind_of: Hash
       attribute :chef_extension, kind_of: Hash
       attribute :outputs, kind_of: Hash
+      attribute :common_info, kind_of: Hash
+      attribute :queue_name, kind_of: String
+      attribute :storage_name, kind_of: String
+      attribute :storage_key, kind_of: String
+      attribute :parse_output, kind_of: String
     end
   end
 end
