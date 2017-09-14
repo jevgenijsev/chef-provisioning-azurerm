@@ -16,6 +16,7 @@ class Chef
           credentials = Credentials.new.azure_credentials_for_subscription(new_resource.subscription_id, new_resource.driver_name)
           client = Azure::ARM::Resources::ResourceManagementClient.new(credentials, resource_manager_endpoint_url(new_resource.driver_name))
           client.subscription_id = new_resource.subscription_id
+	  client.api_version = '2017-05-10'
           client
         end
 
