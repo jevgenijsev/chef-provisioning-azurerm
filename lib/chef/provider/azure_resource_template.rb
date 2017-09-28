@@ -158,7 +158,7 @@ class Chef
 
         pp data_bag
 
-        #Placing necessary info to the data bags.
+        #Placing response queue info to the data bags.
         begin
           Chef::Log.warn('Writing data to the Chef server data bag')
           Chef::Config.from_file(::File.join(ENV['HOME'], 'chef-repo', '.chef', 'knife.rb'))
