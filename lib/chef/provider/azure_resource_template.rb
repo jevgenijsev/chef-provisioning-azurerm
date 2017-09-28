@@ -1,6 +1,8 @@
 require 'chef/provisioning/azurerm/azure_provider'
+require 'chef/data_bag'
+require 'chef/data_bag_item'
 require 'azure'
-require "json"
+require 'json'
 
 class Chef
   class Provider
@@ -144,13 +146,32 @@ class Chef
         Azure.config.storage_account_name = storage_name
         Azure.config.storage_access_key = storage_key
         queue_name = queue_name
-
-        pp deployment_output
         provisioning_state = deployment_provisioning_state
+        
         response_hash = Hash.new
         response_hash = {"deployment_output" => {"public_ip_address"=> deployment_output['publicIPAddress']['value'], "storage_account_name" => deployment_output['storageAccountName']['value'], "storage_key" => deployment_output['storageKey']['value']}}
 
         response_hash_result = common_info.merge(response_hash)
+
+        data_bag = response_hash_result
+        data_bag['id'] = parameters_in_values_format[:chef_node_name]['value'].downcase
+
+        pp data_bag
+
+        #Placing necessary info to the data bags.
+        begin
+          Chef::Log.warn('Writing data to the Chef server data bag')
+          Chef::Config.from_file(::File.join(ENV['HOME'], 'chef-repo', '.chef', 'knife.rb'))
+          databag_item = Chef::DataBagItem.new
+          databag_item.data_bag('nodes')
+          databag_item.raw_data = data_bag
+          if databag_item.save 
+             Chef::Log.warn('Databag item stored successfully')
+          end
+        rescue
+          puts $!
+        end
+
         response_hash_result_json = JSON.pretty_generate(response_hash_result)
 
         begin
